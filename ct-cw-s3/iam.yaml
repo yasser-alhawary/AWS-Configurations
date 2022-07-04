@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template create by Ahmed
+Resources:
+
+
+
+  CTRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: CT-to-CW-S3-Role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+               Service:
+                  - cloudtrail.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+
+
+  CTPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: CT-to-CW-S3-Policy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+            -
+              Effect: Allow
+              Action: 
+                - 'logs:PutLogEvents'
+                - 'logs:CreateLogStream'
+              Resource: '*'
+      Roles:
+        - !Ref CTRole
+
+Outputs:
+
+  CTRoleArn:
+    Description: 'iam role arn' 
+    Value: !GetAtt CTRole.Arn
+    Export:
+      Name: CTRoleArn

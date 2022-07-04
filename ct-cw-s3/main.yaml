@@ -1,0 +1,17 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template create by Ahmed
+Resources:
+  S3s:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://cf-templates-zqnefo8nwnzm-eu-central-1.s3.eu-central-1.amazonaws.com/stack/s3.yaml
+  iams:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://cf-templates-zqnefo8nwnzm-eu-central-1.s3.eu-central-1.amazonaws.com/stack/iam.yaml
+  cloudtrails:
+    DependsOn: [ S3s , iams ]
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://cf-templates-zqnefo8nwnzm-eu-central-1.s3.eu-central-1.amazonaws.com/stack/cloudtrail.yaml
+      TimeoutInMinutes : 1

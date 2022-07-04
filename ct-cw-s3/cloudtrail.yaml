@@ -1,0 +1,15 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template create by Ahmed
+Resources:
+
+  CTTrail:
+    Type: 'AWS::CloudTrail::Trail'
+    Properties:
+      TrailName: 'MGMT-Trail'
+      CloudWatchLogsLogGroupArn: !ImportValue CTLogsArn
+      CloudWatchLogsRoleArn : !ImportValue CTRoleArn
+      EnableLogFileValidation: 'True'
+      IncludeGlobalServiceEvents: 'True'
+      IsLogging: 'True'
+      IsMultiRegionTrail: 'False'
+      S3BucketName: !ImportValue CTBucket

@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template create by Ahmed
+Resources:
+  
+  CTLogs:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: CT-MGMT-LogGroup
+
+  CTBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties: 
+      AccessControl: BucketOwnerFullControl
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  S3BucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref CTBucket
+      PolicyDocument:
+         Statement:
+          -
+            Action: 's3:PutObject'
+            Effect: Allow
+            Resource: !Sub 'arn:aws:s3:::${CTBucket}/*'
+            Principal:
+              Service:
+                - 'cloudtrail.amazonaws.com'
+#            Condition:
+#              StringEquals:
+#                - 's3:x-amz-acl': 'bucket-owner-full-control'
+#                - 'AWS:SourceArn': !Sub 'arn:aws:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/MGMT-Trail'
+                
+          -
+            Action: 's3:GetBucketAcl'
+            Effect: Allow
+            Resource: !Sub 'arn:aws:s3:::${CTBucket}'
+            Principal:
+              Service:
+                - 'cloudtrail.amazonaws.com'
+ #           Condition:
+ #             StringEquals:
+ #               - 'AWS:SourceArn': !Sub 'arn:aws:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/MGMT-Trail'
+
+Outputs:
+  CTLogsArn:
+    Description: 'cloudwatch log group arn'
+    Value: !GetAtt CTLogs.Arn
+    Export:
+      Name: CTLogsArn
+  s3Bucket:
+    Description: 's3 bucket'
+    Value: !Ref CTBucket
+    Export:
+      Name: CTBucket
