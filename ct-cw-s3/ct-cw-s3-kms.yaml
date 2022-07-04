@@ -1,0 +1,140 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template create by Yasser
+Resources:
+
+
+  CloudTrailKey:
+    DeletionPolicy : Retain
+    Type: 'AWS::KMS::Key'
+    Properties: 
+      Description: 'for CloudTrail log files'
+      Enabled: True
+      KeyPolicy: {
+        "Id": "cloudtrailkey",
+        "Statement": [
+          {
+            "Sid": "Allow administration of the key",
+            "Effect": "Allow",
+            "Principal": { "AWS": { "Fn::Join" : [ ":", ["arn:aws:iam:", { "Ref" : "AWS::AccountId" } , "root"]]}},
+            "Action": [
+              "kms:*"
+            ],
+           "Resource": "*"
+          },
+          {
+            "Sid": "Allow use of the key",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "cloudtrail.amazonaws.com"
+            },
+            "Action": [
+              "kms:Encrypt",
+              "kms:Decrypt",
+              "kms:ReEncrypt*",
+              "kms:GenerateDataKey*",
+              "kms:DescribeKey"
+            ],
+            "Resource": "*"
+          }
+        ]
+      }
+
+  CloudTrailKeyAlias:
+    DependsOn: CloudTrailKey
+    Type: 'AWS::KMS::Alias'
+    Properties:
+      AliasName: alias/Cloudtrail-key
+      TargetKeyId: 
+        Ref: CloudTrailKey
+
+
+  CTRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: CT-to-CW-S3-Role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+               Service:
+                  - cloudtrail.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+
+
+  CTPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: CT-to-CW-S3-Policy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+            -
+              Effect: Allow
+              Action: 
+                - 'logs:PutLogEvents'
+                - 'logs:CreateLogStream'
+              Resource: '*'
+      Roles:
+        - !Ref CTRole
+  
+  CTLogs:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: CT-MGMT-LogGroup
+
+  CTBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties: 
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true  
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpirationOnly
+            Status: Enabled
+            ExpirationInDays: 365
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+
+  S3BucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref CTBucket
+      PolicyDocument:
+         Statement:
+          -
+            Action: 's3:PutObject'
+            Effect: Allow
+            Resource: !Sub 'arn:aws:s3:::${CTBucket}/*'
+            Principal:
+              Service: 'cloudtrail.amazonaws.com'
+                
+          -
+            Action: 's3:GetBucketAcl'
+            Effect: Allow
+            Resource: !Sub 'arn:aws:s3:::${CTBucket}'
+            Principal:
+              Service:
+                - 'cloudtrail.amazonaws.com'
+
+  CTTrail:
+    Type: 'AWS::CloudTrail::Trail'
+    DependsOn: [CTPolicy,S3BucketPolicy,CloudTrailKeyAlias]
+    Properties:
+      TrailName: 'MGMT-Trail'
+      CloudWatchLogsLogGroupArn: !GetAtt CTLogs.Arn
+      CloudWatchLogsRoleArn : !GetAtt CTRole.Arn
+      EnableLogFileValidation: 'True'
+      IncludeGlobalServiceEvents: 'True'
+      IsLogging: 'True'
+      IsMultiRegionTrail: 'True'
+      S3BucketName: !Ref CTBucket
+      KMSKeyId: !Ref CloudTrailKey
