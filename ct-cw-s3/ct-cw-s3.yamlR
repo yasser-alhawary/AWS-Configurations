@@ -1,6 +1,19 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Template create by Yasser
 Resources:
+
+  CTTrail:
+    Type: 'AWS::CloudTrail::Trail'
+    DependsOn: [CTPolicy,S3BucketPolicy]
+    Properties:
+      TrailName: 'MGMT-Trail'
+      CloudWatchLogsLogGroupArn: !GetAtt CTLogs.Arn
+      CloudWatchLogsRoleArn : !GetAtt CTRole.Arn
+      EnableLogFileValidation: 'True'
+      IncludeGlobalServiceEvents: 'True'
+      IsLogging: 'True'
+      IsMultiRegionTrail: 'False'
+      S3BucketName: !Ref CTBucket
   
   CTLogs:
     Type: 'AWS::Logs::LogGroup'
@@ -45,14 +58,33 @@ Resources:
  #             StringEquals:
  #               - 'AWS:SourceArn': !Sub 'arn:aws:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/MGMT-Trail'
 
-Outputs:
-  CTLogsArn:
-    Description: 'cloudwatch log group arn'
-    Value: !GetAtt CTLogs.Arn
-    Export:
-      Name: CTLogsArn
-  s3Bucket:
-    Description: 's3 bucket'
-    Value: !Ref CTBucket
-    Export:
-      Name: CTBucket
+  CTRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: CT-to-CW-S3-Role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+               Service:
+                  - cloudtrail.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+
+
+  CTPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: CT-to-CW-S3-Policy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+            -
+              Effect: Allow
+              Action: 
+                - 'logs:PutLogEvents'
+                - 'logs:CreateLogStream'
+              Resource: '*'
+      Roles:
+        - !Ref CTRole
