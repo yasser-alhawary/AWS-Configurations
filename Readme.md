@@ -1,1 +1,1 @@
-this repo contains a cloudformations templates
+this repo contains a cloudformation templates
