@@ -2,61 +2,51 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Template create by Yasser
 Resources:
 
-  CTTrail:
-    Type: 'AWS::CloudTrail::Trail'
-    DependsOn: [CTPolicy,S3BucketPolicy]
-    Properties:
-      TrailName: 'MGMT-Trail'
-      CloudWatchLogsLogGroupArn: !GetAtt CTLogs.Arn
-      CloudWatchLogsRoleArn : !GetAtt CTRole.Arn
-      EnableLogFileValidation: 'True'
-      IncludeGlobalServiceEvents: 'True'
-      IsLogging: 'True'
-      IsMultiRegionTrail: 'False'
-      S3BucketName: !Ref CTBucket
-  
-  CTLogs:
-    Type: 'AWS::Logs::LogGroup'
-    Properties:
-      LogGroupName: CT-MGMT-LogGroup
 
-  CTBucket:
-    Type: 'AWS::S3::Bucket'
+  CloudTrailKey:
+    DeletionPolicy : Retain
+    Type: 'AWS::KMS::Key'
     Properties: 
-      AccessControl: BucketOwnerFullControl
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
+      Description: 'for CloudTrail log files'
+      Enabled: true
+      KeyPolicy: {
+        "Id": "cloudtrailkey",
+        "Statement": [
+          {
+            "Sid": "Allow administration of the key",
+            "Effect": "Allow",
+            "Principal": { "AWS": { "Fn::Join" : [ ":", ["arn:aws:iam:", { "Ref" : "AWS::AccountId" } , "role/Admin"]]}},
+            "Action": [
+              "kms:*"
+            ],
+           "Resource": "*"
+          },
+          {
+            "Sid": "Allow use of the key",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "cloudtrail.amazonaws.com"
+            },
+            "Action": [
+              "kms:Encrypt",
+              "kms:Decrypt",
+              "kms:ReEncrypt*",
+              "kms:GenerateDataKey*",
+              "kms:DescribeKey"
+            ],
+            "Resource": "*"
+          }
+        ]
+      }
 
-  S3BucketPolicy:
-    Type: 'AWS::S3::BucketPolicy'
+  CloudTrailKeyAlias:
+    DependsOn: CloudTrailKey
+    Type: 'AWS::KMS::Alias'
     Properties:
-      Bucket: !Ref CTBucket
-      PolicyDocument:
-         Statement:
-          -
-            Action: 's3:PutObject'
-            Effect: Allow
-            Resource: !Sub 'arn:aws:s3:::${CTBucket}/*'
-            Principal:
-              Service:
-                - 'cloudtrail.amazonaws.com'
-#            Condition:
-#              StringEquals:
-#                - 's3:x-amz-acl': 'bucket-owner-full-control'
-#                - 'AWS:SourceArn': !Sub 'arn:aws:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/MGMT-Trail'
-                
-          -
-            Action: 's3:GetBucketAcl'
-            Effect: Allow
-            Resource: !Sub 'arn:aws:s3:::${CTBucket}'
-            Principal:
-              Service:
-                - 'cloudtrail.amazonaws.com'
- #           Condition:
- #             StringEquals:
- #               - 'AWS:SourceArn': !Sub 'arn:aws:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/MGMT-Trail'
+      AliasName: alias/Cloudtrail-key
+      TargetKeyId: 
+        Ref: CloudTrailKey
+
 
   CTRole:
     Type: 'AWS::IAM::Role'
@@ -88,3 +78,59 @@ Resources:
               Resource: '*'
       Roles:
         - !Ref CTRole
+  
+  CTLogs:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: CT-MGMT-LogGroup
+
+  CTBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties: 
+      AccessControl: BucketOwnerFullControl
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+
+  S3BucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref CTBucket
+      PolicyDocument:
+         Statement:
+          -
+            Action: 's3:PutObject'
+            Effect: Allow
+            Resource: !Sub 'arn:aws:s3:::${CTBucket}/*'
+            Principal:
+              Service:
+                - 'cloudtrail.amazonaws.com'
+            Condition:
+              StringEquals:
+                - 's3:x-amz-acl': 'bucket-owner-full-control'
+                
+          -
+            Action: 's3:GetBucketAcl'
+            Effect: Allow
+            Resource: !Sub 'arn:aws:s3:::${CTBucket}'
+            Principal:
+              Service:
+                - 'cloudtrail.amazonaws.com'
+
+  CTTrail:
+    Type: 'AWS::CloudTrail::Trail'
+    DependsOn: [CTPolicy,S3BucketPolicy,CloudTrailKeyAlias]
+    Properties:
+      TrailName: 'MGMT-Trail'
+      CloudWatchLogsLogGroupArn: !GetAtt CTLogs.Arn
+      CloudWatchLogsRoleArn : !GetAtt CTRole.Arn
+      EnableLogFileValidation: 'True'
+      IncludeGlobalServiceEvents: 'True'
+      IsLogging: 'True'
+      IsMultiRegionTrail: 'False'
+      S3BucketName: !Ref CTBucket
+      KMSKeyId: !Ref CloudTrailKey
