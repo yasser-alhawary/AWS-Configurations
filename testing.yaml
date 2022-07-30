@@ -1,0 +1,230 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "thats a test2"
+Parameters:
+  Instancetype:
+    Description: "des"
+    Type: String
+    Default: t2.micro
+  Mykey:
+    Description: "MY KEY"
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: "yasser"
+  AMID:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+  Message:
+    Description: "Message for HTML page"
+    Default: "Test1"
+    Type: "String"
+
+Resources:
+  #vpc
+  testvpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: "172.20.0.0/16"
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+  #subnets (with no default public ips assigned to primary interfaces)
+  subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs ]
+      VpcId: !Ref testvpc
+      CidrBlock: !Select [0, !Cidr [!GetAtt testvpc.CidrBlock, 3, 8]]
+      Tags:
+        - Key: rank
+          Value: first
+  subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs ]
+      VpcId: !Ref testvpc
+      CidrBlock: !Select [1, !Cidr [!GetAtt testvpc.CidrBlock, 3, 8]]
+      Tags:
+        - Key: rank
+          Value: second
+  subnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs ]
+      VpcId: !Ref testvpc
+      CidrBlock: !Select [2, !Cidr [!GetAtt testvpc.CidrBlock, 3, 8]]
+      Tags:
+        - Key: rank
+          Value: third
+  #igw creation in the region
+  igwName:
+    Type: AWS::EC2::InternetGateway
+  #routetable creation inside vpc
+  mypublicroutetable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref testvpc
+      Tags:
+        - Key: routetable
+          Value: public
+  #attach igw to vpc
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref testvpc
+      InternetGatewayId: !Ref igwName
+  #attach route table to
+  routeTableAssocNam1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subnet1
+      RouteTableId: !Ref mypublicroutetable
+  routeTableAssocNam2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subnet2
+      RouteTableId: !Ref mypublicroutetable
+  routeTableAssocNam3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subnet3
+      RouteTableId: !Ref mypublicroutetable
+  #create default route in the route table
+  defaultgwroute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref mypublicroutetable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref igwName
+  #create a security group
+  InstanceSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: Enable SSH and HTTP access via port 22 IPv4 & port 80 IPv4
+      VpcId: !Ref testvpc
+      SecurityGroupIngress:
+        - Description: "Allow SSH IPv4 IN"
+          IpProtocol: tcp
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: "0.0.0.0/0"
+        - Description: "Allow HTTP IPv4 IN"
+          IpProtocol: tcp
+          FromPort: "80"
+          ToPort: "80"
+          CidrIp: "0.0.0.0/0"
+  #create eip
+  eip:
+    Type: AWS::EC2::EIP
+    DependsOn: 
+      - AttachGateway
+    Properties: 
+      Domain: vpc
+  #instance creation
+  Instance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      'AWS::CloudFormation::Init':
+#call config will run cfnhup then the website to make cfnhup up before install apache package. configsets run in order and internally each one will follow p/g/u/s/f/c/s 
+        configSets: 
+          default: 
+            - "seting-cfhup"
+            - "setting-website"
+        seting-cfhup:
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackName}
+                region=${AWS::Region}
+                interval=1
+                verbose=true
+              mode: '000400'
+              owner: 'root'
+              group: 'root'
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.Instance.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource Instance --region ${AWS::Region}
+                runas=root
+              mode: '000400'
+              owner: 'root'
+              group: 'root'
+          commands:
+            requiredonly:
+              command: "/bin/echo -n "
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: "true"
+                ensureRunning: "true"
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf               
+        setting-website: 
+          packages:
+            yum:
+              httpd: [] 
+          files:
+            /var/www/html/index.html:
+              content: !Sub |
+                <html><head><title>Amazing test page</title></head><body><h1><center>${Message}</center></h1></body></html> 
+          commands:
+            requiredonly:
+              command: "/bin/echo -n "          
+          services:            
+              httpd:
+                enabled: "true"
+                ensureRunning: "true"
+                files:
+                  - "/var/www/html/index.html"   
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT15M    
+    Properties:
+      InstanceType: !Ref Instancetype
+      ImageId: !Ref AMID
+      KeyName: !Ref Mykey
+#      SubnetId: !Ref subnet1
+#      SecurityGroupIds: [!Ref InstanceSecurityGroup]
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          GroupSet: 
+            - Ref: InstanceSecurityGroup
+          SubnetId: 
+            Ref: subnet1      
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource Instance --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource Instance
+  #associate eip to instance primary interface
+  #sometimes the instance doesnot get the public ip and ekastic ip can not be assigned/attached during the launch time so the userdata will fail and stack will fail because of signal time out(no vpc endpoint)
+  IPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref Instance
+      EIP: !Ref eip
+Outputs:
+  first:
+    Description: Information about the value
+    Value: !Sub "my first subnet = ${subnet1.CidrBlock}"
+  second:
+    Description: Information about the value
+    Value: !Sub "my second subnet = ${subnet2.CidrBlock}"
+  third:
+    Description: Information about the value
+    Value: !Sub "my third subnet = ${subnet3.CidrBlock}"
+  ACC:
+    Description: Information about the value
+    Value: !Ref "AWS::AccountId"
+  Reg:
+    Description: Information about the value
+    Value: !Ref "AWS::Region"
+  azs:
+    Description: Information about the value
+    Value: !Join ["-", !GetAZs ]
+  httplink:
+    Description: Information about the value
+    Value: !Sub "http://${Instance.PublicDnsName}/index.html"
