@@ -1,4 +1,4 @@
-name: modify-cloudformation-init-with-newtag-url
+name: modify-cloudformation-init-with-newtag-url2
 
 on:
   push:
