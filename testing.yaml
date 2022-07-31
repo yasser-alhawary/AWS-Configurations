@@ -2,13 +2,20 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: "thats a test2"
 Parameters:
   Instancetype:
+    Type : String 
     Description: "des"
-    Type: String
     Default: t2.micro
   Mykey:
     Description: "MY KEY"
     Type: AWS::EC2::KeyPair::KeyName
     Default: "yasser"
+  Env:
+    Description: "deployment env"
+    Type : String 
+    Default: "test"
+    AllowedValues:
+      - test
+      - prod
   AMID:
     Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
     Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
@@ -16,7 +23,13 @@ Parameters:
     Description: "Message for HTML page"
     Default: "Test1"
     Type: "String"
-
+Conditions:
+  IsProduction: !Equals 
+    - !Ref Env
+    - prod
+  IsTest : !Equals 
+    - !Ref Env
+    - test
 Resources:
   #vpc
   testvpc:
@@ -120,6 +133,7 @@ Resources:
   #instance creation
   Instance:
     Type: AWS::EC2::Instance
+    Condition: IsTest
     Metadata:
       'AWS::CloudFormation::Init':
 #call config will run cfnhup then the website to make cfnhup up before install apache package. configsets run in order and internally each one will follow p/g/u/s/f/c/s 
@@ -163,20 +177,24 @@ Resources:
         setting-website: 
           packages:
             yum:
-              httpd: [] 
+              httpd: []
+              tmux: [] 
+          sources:
+            /var/www/html:   "https://github.com/yasser-alhawary/cloudformation/tarball/master"
           files:
             /var/www/html/index.html:
               content: !Sub |
                 <html><head><title>Amazing test page</title></head><body><h1><center>${Message}</center></h1></body></html> 
           commands:
-            requiredonly:
-              command: "/bin/echo -n "          
-          services:            
+            setperm:
+              command: "chown -R apache:apache /var/www/html"          
+          services:                      
+            systemd:                 
               httpd:
                 enabled: "true"
                 ensureRunning: "true"
                 files:
-                  - "/var/www/html/index.html"   
+                  - "/var/www/html/index.html"
     CreationPolicy:
       ResourceSignal:
         Count: 1
@@ -197,6 +215,7 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
+          export tagversionenv
           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource Instance --region ${AWS::Region}
           /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource Instance
   #associate eip to instance primary interface
@@ -228,3 +247,6 @@ Outputs:
   httplink:
     Description: Information about the value
     Value: !Sub "http://${Instance.PublicDnsName}/index.html"
+  env:
+    Description: Information about the value
+    Value: !Sub ${Env}
