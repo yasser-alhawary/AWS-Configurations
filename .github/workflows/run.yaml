@@ -20,5 +20,4 @@ jobs:
         echo "the trigger tag is ${GITHUB_REF##*/}"
         wget https://raw.githubusercontent.com/yasser-alhawary/cloudformation/master/testing.yaml --output-document=/tmp/template.yaml
         sed 's/tarball.*$/tarball\/'"${GITHUB_REF##*\/}"'/gi' /tmp/template.yaml   
-        cat /tmp/template.yaml  
         aws cloudformation update-stack --template-body file:///tmp/template.yaml --stack-name gh
