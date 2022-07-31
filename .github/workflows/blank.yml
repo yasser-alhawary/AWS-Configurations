@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Debug
+    - name: testing
       run: |
         echo "the trigger tag is ${GITHUB_REF##*/}"
         wget https://raw.githubusercontent.com/yasser-alhawary/cloudformation/master/testing.yaml --output-document=/tmp/template.yaml
