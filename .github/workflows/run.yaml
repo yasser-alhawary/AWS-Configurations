@@ -20,6 +20,6 @@ jobs:
       with:
           aws-region: us-east-1
           role-to-assume: ${{ secrets.AWS_ROLE }}
-          role-session-name: OIDCSession
+          role-session-name: OIDCSession2
     - run: aws cloudformation update-stack --template-body file:///tmp/template.yaml --stack-name gh
       shell: bash
