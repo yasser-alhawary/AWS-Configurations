@@ -11,4 +11,11 @@ jobs:
 
     steps:
     - name: Debug
-      run: echo "${GITHUB_REF##*/}"
+      run: echo "the trigger tag is ${GITHUB_REF##*/}"
+    - name: download template
+      run: wget https://raw.githubusercontent.com/yasser-alhawary/cloudformation/master/testing.yaml --output-document=/tmp/template.yaml
+    - name: edit template to have the new tag
+      run: sed -i 's/REPLACEME/${GITHUB_REF##*/}' /tmp/template.yaml   
+    - name: edisplay new init
+      run: cat /tmp/template.yaml  
+
