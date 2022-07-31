@@ -1,7 +1,9 @@
-name: Experiment
+name: modify-cloudformation-init-with-newtag-url
 
 on:
   push:
+    tags:        
+      - '*-prod'
 
 jobs:
   build:
@@ -9,4 +11,4 @@ jobs:
 
     steps:
     - name: Debug
-      run: echo "Works. Tag is ${GITHUB_REF##*/}"
+      run: echo "${GITHUB_REF##*/}"
