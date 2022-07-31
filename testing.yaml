@@ -3,7 +3,7 @@ Description: "thats a test2"
 Parameters:
   Instancetype:
     Type : String 
-    Description: "des"
+    Description: "dess"
     Default: t2.micro
   Mykey:
     Description: "MY KEY"
@@ -184,7 +184,7 @@ Resources:
           files:
             /var/www/html/index.html:
               content: !Sub |
-                <html><head><title>Amazing test page</title></head><body><h1><center>${Message}</center></h1></body></html> 
+                <html><head><title>Amazing test page</title></head><body><h1><center>${Message}"asdasd"</center></h1></body></html> 
           commands:
             setperm:
               command: "chown -R apache:apache /var/www/html"          

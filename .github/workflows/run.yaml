@@ -4,7 +4,8 @@ on:
   push:
     tags:        
       - '*-prod'
-
+permissions:
+  id-token: write
 jobs:
   update-stack:
     runs-on: ubuntu-latest
@@ -18,7 +19,7 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v1
       with:
           aws-region: us-east-1
-          role-to-assume: ${{ AWS_ROLE }}
+          role-to-assume: ${{ secrets.AWS_ROLE }}
           role-session-name: OIDCSession
     - run: aws cloudformation update-stack --template-body file:///tmp/template.yaml --stack-name gh
       shell: bash
