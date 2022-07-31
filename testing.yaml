@@ -180,7 +180,7 @@ Resources:
               httpd: []
               tmux: [] 
           sources:
-            /var/www/html:   "https://github.com/yasser-alhawary/cloudformation/tarball/REPLACEME"
+            /var/www/html:   https://github.com/yasser-alhawary/cloudformation/tarball/REPLACEME
           files:
             /var/www/html/index.html:
               content: !Sub |
