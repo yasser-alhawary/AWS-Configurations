@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "for production/test and public/private"
+Parameters:
+  Instancetype:
+    Type : String 
+    Description: "dess"
+    Default: t2.micro
+  Mykey:
+    Description: "MY KEY"
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: "yasser"
+  Env:
+    Description: "Deployment Environment"
+    Type : String 
+    Default: "Test"
+    AllowedValues:
+      - Test
+      - Prod
+  NetMode:
+    Description: "public or private"
+    Type: String
+    Default: "Public"
+    AllowedValues:
+      - Public
+      - Private
+  AMID:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+  Message:
+    Description: "Message for HTML page"
+    Default: "Test1"
+    Type: "String"
+Conditions:
+  IsProduction: !Equals 
+    - !Ref Env
+    - Prod
+  IsTest : !Equals 
+    - !Ref Env
+    - Test
+  IsPublic: !Equals
+    - !Ref NetMode
+    - Public
+  IsPrivate: !Equals
+    - !Ref NetMode
+    - Private
+
+Resources:
+  ProdLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          -
+        DisableApiStop: false
+        DisableApiTermination: false
+        EbsOptimized: false
+        ElasticGpuSpecifications:
+          -
+        ElasticInferenceAccelerators:
+          -
+        ImageId: !Ref AMID
+        InstanceInitiatedShutdownBehavior: "String"
+        InstanceType: !Ref Instancetype
+        KeyName: !Ref Mykey
+        SecurityGroupIds:
+          - !ImportValue 
+        SecurityGroups:
+          -
+        TagSpecifications:
+          -
+        UserData: "String"
+      LaunchTemplateName: "String"
+      TagSpecifications:
+        TagSpecifications
+
+!ImportValue 

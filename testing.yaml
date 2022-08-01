@@ -135,8 +135,8 @@ Resources:
               content: !Sub |
                 [cfn-auto-reloader-hook]
                 triggers=post.update
-                path=Resources.Instance.Metadata.AWS::CloudFormation::Init
-                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource Instance --region ${AWS::Region}
+                path=Resources.PrivateInstance.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource PrivateInstance --region ${AWS::Region}
                 runas=root
               mode: '000400'
               owner: 'root'
@@ -160,16 +160,14 @@ Resources:
       InstanceType: !Ref Instancetype
       ImageId: !Ref AMID
       KeyName: !Ref Mykey
-#      SubnetId: !Ref subnet1
-#      SecurityGroupIds: [!Ref InstanceSecurityGroup]
       SecurityGroupIds: !
         - !Ref InstanceSecurityGroup
       SubnetId: !Ref Subnet1Private      
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
-          /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource Instance --region ${AWS::Region}
-          /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource Instance
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource   PrivateInstance --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource   PrivateInstance
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -244,8 +242,8 @@ Resources:
               content: !Sub |
                 [cfn-auto-reloader-hook]
                 triggers=post.update
-                path=Resources.Instance.Metadata.AWS::CloudFormation::Init
-                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource Instance --region ${AWS::Region}
+                path=Resources.PublicInstance.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource PublicInstance --region ${AWS::Region}
                 runas=root
               mode: '000400'
               owner: 'root'
@@ -290,16 +288,14 @@ Resources:
       InstanceType: !Ref Instancetype
       ImageId: !Ref AMID
       KeyName: !Ref Mykey
-#      SubnetId: !Ref subnet1
-#      SecurityGroupIds: [!Ref InstanceSecurityGroup]
       SecurityGroupIds:
         - !Ref InstanceSecurityGroup
       SubnetId: !Ref Subnet1Public     
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
-          /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource Instance --region ${AWS::Region}
-          /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource Instance
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource PublicInstance --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource PublicInstance
 
 #  EIP:
 #    Type: AWS::EC2::EIP
@@ -314,3 +310,4 @@ Resources:
 #    Properties:
 #      InstanceId: !Ref PublicInstance
 #      EIP: !Ref EIP
+
