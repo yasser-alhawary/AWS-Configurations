@@ -73,6 +73,7 @@ Resources:
           FromPort: "80"
           ToPort: "80"
           CidrIp: "0.0.0.0/0"
+
   PrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -162,20 +163,22 @@ Resources:
 #      SubnetId: !Ref subnet1
 #      SecurityGroupIds: [!Ref InstanceSecurityGroup]
       SecurityGroupIds: !
-        -Ref: InstanceSecurityGroup
-      SubnetId: 
-            Ref: Subnet1Private      
+        - !Ref InstanceSecurityGroup
+      SubnetId: !Ref Subnet1Private      
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource Instance --region ${AWS::Region}
           /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource Instance
+
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref TestVPC
   PublicRouteTableRule:
     Type: AWS::EC2::Route
+    DependsOn: 
+      - IGWAttachment
     Properties:
       RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
@@ -289,15 +292,15 @@ Resources:
       KeyName: !Ref Mykey
 #      SubnetId: !Ref subnet1
 #      SecurityGroupIds: [!Ref InstanceSecurityGroup]
-      SecurityGroupIds: !
-        -Ref: InstanceSecurityGroup
-      SubnetId: 
-            Ref: Subnet1Public     
+      SecurityGroupIds:
+        - !Ref InstanceSecurityGroup
+      SubnetId: !Ref Subnet1Public     
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource Instance --region ${AWS::Region}
           /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource Instance
+
 #  EIP:
 #    Type: AWS::EC2::EIP
 #    Condition: IsPublic
