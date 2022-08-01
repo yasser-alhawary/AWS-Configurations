@@ -73,7 +73,7 @@ Resources:
           FromPort: "80"
           ToPort: "80"
           CidrIp: "0.0.0.0/0"
-
+###private###
   PrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -168,7 +168,7 @@ Resources:
           #!/bin/bash -xe
           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource   PrivateInstance --region ${AWS::Region}
           /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource   PrivateInstance
-
+####public####
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -217,6 +217,7 @@ Resources:
     Properties:
       SubnetId: !Ref Subnet3Public
       RouteTableId: !Ref PublicRouteTable
+
   PublicInstance:
     Type: AWS::EC2::Instance
     Condition: IsPublic

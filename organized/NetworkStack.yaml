@@ -4,15 +4,17 @@ Parameters:
   VPCCIDR:
     Description: "Enter The VPC CIDR"
     Type: String
-    Default: "172.20.0.0/16"
+    Default: "172.25.0.0/16"
     AllowedValues:
-      - Public
-      - Private
+      - 10.0.0.0/16
+      - 10.10.0.0/16
+      - 172.20.0.0/16
+      - 172.25.0.0/16
 Resources:
   TestVPC:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: "172.20.0.0/16"
+      CidrBlock: !Ref VPCCIDR
       EnableDnsHostnames: true
       EnableDnsSupport: true
       Tags:
@@ -29,9 +31,7 @@ Resources:
     Properties:
       VpcId: !Ref TestVPC
       InternetGatewayId: !Ref IGW
-      Tags:
-        - Key: StackName
-          Value: !Ref AWS::StackName      
+     
   HTTPSecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
@@ -65,12 +65,6 @@ Resources:
     Properties:
       GroupDescription: Allow Traffic From ALB Port 80
       VpcId: !Ref TestVPC
-      SecurityGroupIngress:
-        - Description: "Allow port 80 from ALB"
-          IpProtocol: tcp
-          FromPort: "80"
-          ToPort: "80"
-          CidrIp: !Ref SecurityGroupALB
       Tags:
         - Key: StackName
           Value: !Ref AWS::StackName
@@ -88,6 +82,15 @@ Resources:
         Tags:
           - Key: StackName
             Value: !Ref AWS::StackName
+  ALBRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: "Allow ALB SG To Port 80"
+      GroupId: !Ref SecurityGroupTrustALBOnly
+      SourceSecurityGroupId: !Ref SecurityGroupALB
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80 
   PrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -152,9 +155,6 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref IGW
-      Tags:
-        - Key: StackName
-          Value: !Ref AWS::StackName
   Subnet1Public:
     Type: AWS::EC2::Subnet
     Properties:
@@ -231,16 +231,6 @@ Outputs:
     Value: !Ref Subnet3Public
     Export: 
       Name: PubSub3
-    PublicSubnet1:
-    Description: 1st Public Subnet
-    Value: !Ref Subnet1Public
-    Export: 
-      Name: PubSub1
-  PublicSubnet2:
-    Description: 2nd Public Subnet
-    Value: !Ref Subnet1Public
-    Export: 
-      Name: PubSub2
   SecurityGroupForSSH:
     Description: SSH Security Group
     Value: !Ref SSHSecurityGroup
@@ -261,6 +251,7 @@ Outputs:
     Value: !Ref SecurityGroupTrustALBOnly
     Export: 
       Name: HTTPFromALB
+
 #  EIP:
 #    Type: AWS::EC2::EIP
 #    Condition: IsPublic
