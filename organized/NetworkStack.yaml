@@ -1,0 +1,142 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "for production/test and public/private"
+Parameters:
+
+  VPCCIDR:
+    Description: "Enter The VPC CIDR"
+    Type: String
+    Default: "172.20.0.0/16"
+    AllowedValues:
+      - Public
+      - Private
+Resources:
+  TestVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: "172.20.0.0/16"
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+  IGW:
+    Type: AWS::EC2::InternetGateway
+  IGWAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref TestVPC
+      InternetGatewayId: !Ref IGW
+  InstanceSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: Enable SSH and HTTP access via port 22 IPv4 & port 80 IPv4
+      VpcId: !Ref TestVPC
+      SecurityGroupIngress:
+        - Description: "Allow SSH IPv4 IN"
+          IpProtocol: tcp
+          FromPort: "22"
+          ToPort: "22"
+          CidrIp: "0.0.0.0/0"
+        - Description: "Allow HTTP IPv4 IN"
+          IpProtocol: tcp
+          FromPort: "80"
+          ToPort: "80"
+          CidrIp: "0.0.0.0/0"
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref TestVPC
+  Subnet1Private:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs ]
+      VpcId: !Ref TestVPC
+      CidrBlock: !Select [1, !Cidr [!GetAtt TestVPC.CidrBlock, 6, 8]]
+  Subnet2Private:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs ]
+      VpcId: !Ref TestVPC
+      CidrBlock: !Select [3, !Cidr [!GetAtt TestVPC.CidrBlock, 6, 8]]
+  Subnet3Private:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [2, !GetAZs ]
+      VpcId: !Ref TestVPC
+      CidrBlock: !Select [5, !Cidr [!GetAtt TestVPC.CidrBlock, 6, 8]]
+  Subnet1PrivateRouteableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet1Private
+      RouteTableId: !Ref PrivateRouteTable
+  Subnet2PrivateRouteableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet2Private
+      RouteTableId: !Ref PrivateRouteTable
+  Subnet3PrivateRouteableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet3Private
+      RouteTableId: !Ref PrivateRouteTable
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref TestVPC
+  PublicRouteTableRule:
+    Type: AWS::EC2::Route
+    DependsOn: 
+      - IGWAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+  Subnet1Public:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs ]
+      VpcId: !Ref TestVPC
+      CidrBlock: !Select [0, !Cidr [!GetAtt TestVPC.CidrBlock, 6, 8]]
+      MapPublicIpOnLaunch: true
+  Subnet2Public:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs ]
+      VpcId: !Ref TestVPC
+      CidrBlock: !Select [2, !Cidr [!GetAtt TestVPC.CidrBlock, 6, 8]]
+      MapPublicIpOnLaunch: true
+  Subnet3Public:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [2, !GetAZs ]
+      VpcId: !Ref TestVPC
+      CidrBlock: !Select [4, !Cidr [!GetAtt TestVPC.CidrBlock, 6, 8]]
+      MapPublicIpOnLaunch: true
+  Subnet1PublicRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet1Public
+      RouteTableId: !Ref PublicRouteTable
+  Subnet2PublicRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet2Public
+      RouteTableId: !Ref PublicRouteTable
+  Subnet3PublicRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet3Public
+      RouteTableId: !Ref PublicRouteTable
+
+#  EIP:
+#    Type: AWS::EC2::EIP
+#    Condition: IsPublic
+#    DependsOn: 
+#      - IGWAttachment
+#    Properties: 
+#      Domain: vpc
+#  IPAssoc:
+#    Type: AWS::EC2::EIPAssociation
+#    Condition: IsPublic
+#    Properties:
+#      InstanceId: !Ref PublicInstance
+#      EIP: !Ref EIP
