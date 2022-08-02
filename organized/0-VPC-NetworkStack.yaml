@@ -68,7 +68,7 @@ Resources:
       Tags:
         - Key: StackName
           Value: !Ref AWS::StackName
-  SecurityGroupALB:
+  SecurityGroupForHTTPS:
       Type: "AWS::EC2::SecurityGroup"
       Properties:
         GroupDescription: Enable HTTPS access via port 443 IPv4
@@ -87,7 +87,7 @@ Resources:
     Properties:
       Description: "Allow ALB SG To Port 80"
       GroupId: !Ref SecurityGroupTrustALBOnly
-      SourceSecurityGroupId: !Ref SecurityGroupALB
+      SourceSecurityGroupId: !Ref   SecurityGroupForHTTPS
       IpProtocol: tcp
       FromPort: 80
       ToPort: 80 
@@ -201,6 +201,11 @@ Resources:
       SubnetId: !Ref Subnet3Public
       RouteTableId: !Ref PublicRouteTable
 Outputs:
+  VPC:
+    Description: VPC
+    Value: !Ref TestVPC
+    Export: 
+      Name: VPCID
   PrivateSubnet1:
     Description: 1st Private Subnet
     Value: !Ref Subnet1Private
@@ -241,11 +246,11 @@ Outputs:
     Value: !Ref HTTPSecurityGroup
     Export: 
       Name: HTTP
-  SecurityGroupALB:
+  SecurityGroupForHTTPS:
     Description: HTTPS Security Group For ALB
-    Value: !Ref SecurityGroupALB
+    Value: !Ref SecurityGroupForHTTPS
     Export: 
-      Name: HTTPSToALB
+      Name: HTTPS
   SecurityGroupHTTPFromALB:
     Description: HTTP Security Group From ALB Only
     Value: !Ref SecurityGroupTrustALBOnly

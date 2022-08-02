@@ -19,53 +19,7 @@ Parameters:
   NetMode:
     Description: "public or private"
     Type: String
-    Default: "Public"
-    AllowedValues:
-      - Public
-      - Private
-  AMID:
-    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
-    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
-  Message:
-    Description: "Message for HTML page"
-    Default: "Test1"
-    Type: "String"
-Conditions:
-  IsProduction: !Equals 
-    - !Ref Env
-    - Prod
-  IsTest : !Equals 
-    - !Ref Env
-    - Test
-  IsPublic: !Equals
-    - !Ref NetMode
-    - Public
-  IsPrivate: !Equals
-    - !Ref NetMode
-    - Private
-Resources:
-AWSTemplateFormatVersion: 2010-09-09
-Description: "for production/test and public/private"
-Parameters:
-  Instancetype:
-    Type : String 
-    Description: "dess"
-    Default: t2.micro
-  Mykey:
-    Description: "MY KEY"
-    Type: AWS::EC2::KeyPair::KeyName
-    Default: "yasser"
-  Env:
-    Description: "Deployment Environment"
-    Type : String 
-    Default: "Test"
-    AllowedValues:
-      - Test
-      - Prod
-  NetMode:
-    Description: "public or private"
-    Type: String
-    Default: "Public"
+    Default: "Private"
     AllowedValues:
       - Public
       - Private
@@ -151,9 +105,24 @@ Resources:
           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource Bastion --region ${AWS::Region}
           /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource Bastion
 
+  CFNVPCInterfaceEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Condition: IsPrivate
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.cloudformation'
+      VpcId: !ImportValue VPCID
+      SubnetIds:
+        - !ImportValue  PriSub1
+      SecurityGroupIds:
+        - !ImportValue HTTPS
+
   PrivateInstance:
     Type: AWS::EC2::Instance
     Condition: IsPrivate
+    DependsOn:
+      - CFNVPCInterfaceEndpoint
     Metadata:
       'AWS::CloudFormation::Init':
         configSets: 
@@ -195,7 +164,7 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: 1
-        Timeout: PT2M    
+        Timeout: PT40M    
     Properties:
       InstanceType: !Ref Instancetype
       ImageId: !Ref AMID
