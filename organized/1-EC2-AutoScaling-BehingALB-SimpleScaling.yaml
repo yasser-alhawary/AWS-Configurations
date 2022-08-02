@@ -1,0 +1,245 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "for production/test and public/private"
+Parameters:
+  Instancetype:
+    Type : String 
+    Description: "dess"
+    Default: t2.micro
+  Mykey:
+    Description: "MY KEY"
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: "yasser"
+  Env:
+    Description: "Deployment Environment"
+    Type : String 
+    Default: "Test"
+    AllowedValues:
+      - Test
+      - Prod
+  NetMode:
+    Description: "public or private"
+    Type: String
+    Default: "Public"
+    AllowedValues:
+      - Public
+      - Private
+  AMID:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+  Message:
+    Description: "Message for HTML page"
+    Default: "Test1"
+    Type: "String"
+  SNSEmail:
+    Description: EMail address to notify if there are any scaling operations
+    Type: String
+    AllowedPattern: ([a-zA-Z0-9_\-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\]?)
+    ConstraintDescription: must be a valid email address.
+Conditions:
+  IsProduction: !Equals 
+    - !Ref Env
+    - Prod
+  IsTest : !Equals 
+    - !Ref Env
+    - Test
+  IsPublic: !Equals
+    - !Ref NetMode
+    - Public
+  IsPrivate: !Equals
+    - !Ref NetMode
+    - Private
+Resources:
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+      - Endpoint: !Ref SNSEmail
+        Protocol: email
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+        Subnets: 
+            - !ImportValue  PubSub1
+            - !ImportValue  PubSub2
+            - !ImportValue  PubSub3
+        SecurityGroups: 
+            - !ImportValue ALBHTTP
+        Type: application
+        Scheme: internet-facing
+        IpAddressType: ipv4  
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+        VpcId: !ImportValue VPCID
+        Port: 80
+        Protocol: HTTP
+        TargetType: instance
+        Matcher: 
+            HttpCode: 200
+        HealthCheckIntervalSeconds: 10
+        HealthCheckPath: "/"
+        HealthCheckProtocol: HTTP
+        HealthCheckTimeoutSeconds: 5
+        HealthyThresholdCount: 2
+        UnhealthyThresholdCount: 2    
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+        LoadBalancerArn: !Ref LoadBalancer
+        Port: 80
+        Protocol: HTTP 
+        DefaultActions: 
+            - Type: forward
+              TargetGroupArn: !Ref TargetGroup
+  ASGWebAPPLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Metadata:
+      'AWS::CloudFormation::Init':
+        configSets: 
+          default: 
+            - "seting-cfhup"
+            - "setting-website"
+        seting-cfhup:
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackName}
+                region=${AWS::Region}
+                interval=1
+                verbose=true
+              mode: '000400'
+              owner: 'root'
+              group: 'root'
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.ASGWebAPPLaunchTemplate.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource ASGWebAPPGroup --region ${AWS::Region}
+                runas=root
+              mode: '000400'
+              owner: 'root'
+              group: 'root'
+          commands:
+            requiredonly:
+              command: "/bin/echo -n "
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: "true"
+                ensureRunning: "true"
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf               
+        setting-website: 
+          packages:
+            yum:
+              httpd: []
+              tmux: [] 
+          sources:
+            /var/www/html:   https://github.com/yasser-alhawary/cloudformation/tarball/v1.0
+          files:
+            /var/www/html/index.html:
+              content: !Sub |
+                <html><head><title>Amazing test page</title></head><body><h1><center>${Message}"asdasd"</center></h1></body></html> 
+          commands:
+            setperm:
+              command: "chown -R apache:apache /var/www/html"          
+          services:                      
+            systemd:                 
+              httpd:
+                enabled: "true"
+                ensureRunning: "true"
+                files:
+                  - "/var/www/html/index.html"
+    Properties:
+      LaunchTemplateData:
+        DisableApiStop: false
+        DisableApiTermination: false
+        EbsOptimized: false
+        InstanceInitiatedShutdownBehavior: terminate
+        InstanceType: !Ref Instancetype
+        ImageId: !Ref AMID
+        KeyName: !Ref Mykey
+        SecurityGroupIds:
+          - !ImportValue  SSH
+          - !ImportValue  HTTPFromALB
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash -xe
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource   ASGWebAPPLaunchTemplate --region ${AWS::Region}
+            /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource ASGWebAPPGroup
+  ASGWebAPPGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+        Count: 1
+    Properties:
+      LaunchTemplate:  ASGWebAPPLaunchTemplate
+      LaunchTemplate:
+        LaunchTemplateId: !Ref ASGWebAPPLaunchTemplate
+        Version: !GetAtt ASGWebAPPLaunchTemplate.LatestVersionNumber      
+      MinSize: 1
+      MaxSize: 3
+      HealthCheckGracePeriod: 60
+      VPCZoneIdentifier:
+        - !ImportValue PubSub1
+        - !ImportValue PubSub2
+        - !ImportValue PubSub3
+      TargetGroupARNs:
+        - !Ref TargetGroup
+      NotificationConfigurations:
+        - TopicARN: !Ref 'NotificationTopic'
+          NotificationTypes:
+            - autoscaling:EC2_INSTANCE_LAUNCH
+            - autoscaling:EC2_INSTANCE_LAUNCH_ERROR
+            - autoscaling:EC2_INSTANCE_TERMINATE
+            - autoscaling:EC2_INSTANCE_TERMINATE_ERROR
+  WebServerScaleOutPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref ASGWebAPPGroup
+      Cooldown: '60'
+      ScalingAdjustment: 1
+  WebServerScaleInPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref ASGWebAPPGroup
+      Cooldown: '60'
+      ScalingAdjustment: -1
+  CPUAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Scale-up if CPU > 90% for 10 minutes
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 90
+      AlarmActions: 
+        - !Ref WebServerScaleOutPolicy
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref 'ASGWebAPPGroup'
+      ComparisonOperator: GreaterThanThreshold
+  CPUAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Scale-down if CPU < 70% for 10 minutes
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 70
+      AlarmActions: 
+        - !Ref WebServerScaleInPolicy
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref 'ASGWebAPPGroup'
+      ComparisonOperator: LessThanThreshold
