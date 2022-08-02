@@ -202,23 +202,23 @@ Resources:
     Properties:
       AdjustmentType: ChangeInCapacity
       AutoScalingGroupName: !Ref ASGWebAPPGroup
-      Cooldown: '60'
+      Cooldown: 120
       ScalingAdjustment: 1
   WebServerScaleInPolicy:
     Type: AWS::AutoScaling::ScalingPolicy
     Properties:
       AdjustmentType: ChangeInCapacity
       AutoScalingGroupName: !Ref ASGWebAPPGroup
-      Cooldown: '60'
+      Cooldown: 120
       ScalingAdjustment: -1
   CPUAlarmHigh:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: Scale-up if CPU > 90% for 10 minutes
+      AlarmDescription: ScaleOut if CPU > 90% for 2 minutes
       MetricName: CPUUtilization
       Namespace: AWS/EC2
       Statistic: Average
-      Period: 300
+      Period: 60
       EvaluationPeriods: 2
       Threshold: 90
       AlarmActions: 
@@ -230,11 +230,11 @@ Resources:
   CPUAlarmLow:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: Scale-down if CPU < 70% for 10 minutes
+      AlarmDescription: ScaleIn if CPU < 70% for 2 minutes
       MetricName: CPUUtilization
       Namespace: AWS/EC2
       Statistic: Average
-      Period: 300
+      Period: 60
       EvaluationPeriods: 2
       Threshold: 70
       AlarmActions: 
