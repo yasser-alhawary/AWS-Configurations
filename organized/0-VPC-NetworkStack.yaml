@@ -60,37 +60,55 @@ Resources:
       Tags:
         - Key: StackName
           Value: !Ref AWS::StackName
+
+  SecurityGroupForALBHTTP:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: Enable HTTPS access via port 80 IPv4
+      VpcId: !Ref TestVPC
+      SecurityGroupIngress:
+        - Description: "Allow HTTPS IPv4 IN"
+          IpProtocol: tcp
+          FromPort: "80"
+          ToPort: "80"
+          CidrIp: "0.0.0.0/0"
+      Tags:
+        - Key: StackName
+          Value: !Ref AWS::StackName
+  SecurityGroupForALBHTTPS:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: Enable HTTPS access via port 443 IPv4
+      VpcId: !Ref TestVPC
+      SecurityGroupIngress:
+        - Description: "Allow HTTPS IPv4 IN"
+          IpProtocol: tcp
+          FromPort: "443"
+          ToPort: "443"
+          CidrIp: "0.0.0.0/0"
+      Tags:
+        - Key: StackName
+          Value: !Ref AWS::StackName
+  
   SecurityGroupTrustALBOnly:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
-      GroupDescription: Allow Traffic From ALB Port 80
+      GroupDescription: Accept connections from ALB Security Group over port 80
       VpcId: !Ref TestVPC
       Tags:
         - Key: StackName
           Value: !Ref AWS::StackName
-  SecurityGroupForHTTPS:
-      Type: "AWS::EC2::SecurityGroup"
-      Properties:
-        GroupDescription: Enable HTTPS access via port 443 IPv4
-        VpcId: !Ref TestVPC
-        SecurityGroupIngress:
-          - Description: "Allow HTTPS IPv4 IN"
-            IpProtocol: tcp
-            FromPort: "443"
-            ToPort: "443"
-            CidrIp: "0.0.0.0/0"
-        Tags:
-          - Key: StackName
-            Value: !Ref AWS::StackName
   ALBRule:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       Description: "Allow ALB SG To Port 80"
       GroupId: !Ref SecurityGroupTrustALBOnly
-      SourceSecurityGroupId: !Ref   SecurityGroupForHTTPS
+      SourceSecurityGroupId: !Ref   SecurityGroupForALBHTTP
       IpProtocol: tcp
       FromPort: 80
       ToPort: 80 
+  
+
   PrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -246,11 +264,16 @@ Outputs:
     Value: !Ref HTTPSecurityGroup
     Export: 
       Name: HTTP
-  SecurityGroupForHTTPS:
+  SecurityGroupForHTTPSALB:
     Description: HTTPS Security Group For ALB
-    Value: !Ref SecurityGroupForHTTPS
+    Value: !Ref SecurityGroupForALBHTTPS
     Export: 
-      Name: HTTPS
+      Name: ALBHTTPS
+  SecurityGroupForHTTPALB:
+    Description: HTTP Security Group For ALB
+    Value: !Ref SecurityGroupForALBHTTP
+    Export: 
+      Name: ALBHTTP
   SecurityGroupHTTPFromALB:
     Description: HTTP Security Group From ALB Only
     Value: !Ref SecurityGroupTrustALBOnly
