@@ -1,0 +1,210 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "for production/test and public/private"
+Parameters:
+  Instancetype:
+    Type : String 
+    Description: "dess"
+    Default: t2.micro
+  Mykey:
+    Description: "MY KEY"
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: "yasser"
+  Env:
+    Description: "Deployment Environment"
+    Type : String 
+    Default: "Test"
+    AllowedValues:
+      - Test
+      - Prod
+  NetMode:
+    Description: "public or private"
+    Type: String
+    Default: "Public"
+    AllowedValues:
+      - Public
+      - Private
+  AMID:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+  Message:
+    Description: "Message for HTML page"
+    Default: "Test1"
+    Type: "String"
+Conditions:
+  IsProduction: !Equals 
+    - !Ref Env
+    - Prod
+  IsTest : !Equals 
+    - !Ref Env
+    - Test
+  IsPublic: !Equals
+    - !Ref NetMode
+    - Public
+  IsPrivate: !Equals
+    - !Ref NetMode
+    - Private
+Resources:
+AWSTemplateFormatVersion: 2010-09-09
+Description: "for production/test and public/private"
+Parameters:
+  Instancetype:
+    Type : String 
+    Description: "dess"
+    Default: t2.micro
+  Mykey:
+    Description: "MY KEY"
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: "yasser"
+  Env:
+    Description: "Deployment Environment"
+    Type : String 
+    Default: "Test"
+    AllowedValues:
+      - Test
+      - Prod
+  NetMode:
+    Description: "public or private"
+    Type: String
+    Default: "Public"
+    AllowedValues:
+      - Public
+      - Private
+  AMID:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+  Message:
+    Description: "Message for HTML page"
+    Default: "Test1"
+    Type: "String"
+Conditions:
+  IsProduction: !Equals 
+    - !Ref Env
+    - Prod
+  IsTest : !Equals 
+    - !Ref Env
+    - Test
+  IsPublic: !Equals
+    - !Ref NetMode
+    - Public
+  IsPrivate: !Equals
+    - !Ref NetMode
+    - Private
+Resources:
+#2 instances one bastion and other private
+
+  Bastion:
+
+    Type: AWS::EC2::Instance
+    Condition: IsPrivate
+    Metadata:
+      'AWS::CloudFormation::Init':
+        configSets: 
+          default: 
+            - "seting-cfhup"
+        seting-cfhup:
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackName}
+                region=${AWS::Region}
+                interval=1
+                verbose=true
+              mode: '000400'
+              owner: 'root'
+              group: 'root'
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.Bastion.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource Bastion --region ${AWS::Region}
+                runas=root
+              mode: '000400'
+              owner: 'root'
+              group: 'root'
+          commands:
+            requiredonly:
+              command: "/bin/echo -n "
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: "true"
+                ensureRunning: "true"
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf               
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT5M    
+    Properties:
+      InstanceType: !Ref Instancetype
+      ImageId: !Ref AMID
+      KeyName: !Ref Mykey
+      SecurityGroupIds:
+        - !ImportValue  SSH
+      SubnetId: !ImportValue  PubSub1	     
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource Bastion --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource Bastion
+
+  PrivateInstance:
+    Type: AWS::EC2::Instance
+    Condition: IsPrivate
+    Metadata:
+      'AWS::CloudFormation::Init':
+        configSets: 
+          default: 
+            - "seting-cfhup"
+        seting-cfhup:
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackName}
+                region=${AWS::Region}
+                interval=1
+                verbose=true
+              mode: '000400'
+              owner: 'root'
+              group: 'root'
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.PrivateInstance.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource PrivateInstance --region ${AWS::Region}
+                runas=root
+              mode: '000400'
+              owner: 'root'
+              group: 'root'
+          commands:
+            requiredonly:
+              command: "/bin/echo -n "
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: "true"
+                ensureRunning: "true"
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf               
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT2M    
+    Properties:
+      InstanceType: !Ref Instancetype
+      ImageId: !Ref AMID
+      KeyName: !Ref Mykey
+      SecurityGroupIds: !
+        - !ImportValue  SSH
+      SubnetId: !ImportValue  PriSub1      
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource   PrivateInstance --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource   PrivateInstance
