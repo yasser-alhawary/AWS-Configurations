@@ -147,7 +147,7 @@ Resources:
         DisableApiStop: false
         DisableApiTermination: false
         EbsOptimized: false
-        InstanceInitiatedShutdownBehavior: "String"
+        InstanceInitiatedShutdownBehavior: terminate
         InstanceType: !Ref Instancetype
         ImageId: !Ref AMID
         KeyName: !Ref Mykey
@@ -159,7 +159,6 @@ Resources:
             #!/bin/bash -xe
             /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource   ASGWebAPPLaunchTemplate --region ${AWS::Region}
             /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource ASGWebAPPGroup
-
   ASGWebAPPGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     CreationPolicy:
@@ -167,6 +166,10 @@ Resources:
         Timeout: PT15M
         Count: 1
     Properties:
+      LaunchTemplate:  ASGWebAPPLaunchTemplate
+      LaunchTemplate:
+        LaunchTemplateId: !Ref ASGWebAPPLaunchTemplate
+        Version: !GetAtt ASGWebAPPLaunchTemplate.LatestVersionNumber      
       MinSize: '1'
       MaxSize: '3'
       VPCZoneIdentifier:
