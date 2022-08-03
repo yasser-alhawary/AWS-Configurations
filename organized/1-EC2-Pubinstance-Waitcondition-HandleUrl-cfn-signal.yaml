@@ -123,7 +123,7 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource PublicInstance --region ${AWS::Region}
-          /opt/aws/bin/cfn-signal  -s true --reason "Created" --data  "Clean"  ${ResponseUrl}
+          /opt/aws/bin/cfn-signal  -s true --reason "Created" --data  "Clean"  -i "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" "${ResponseUrl}"
   
   WaitForEc2:
     Type: AWS::CloudFormation::WaitCondition
@@ -136,3 +136,8 @@ Resources:
   s3Bucket:
     Type: AWS::S3::Bucket
     DependsOn:  WaitForEc2
+
+Outputs:
+  LogicalID:
+    Description: Information about the value
+    Value: !Ref ResponseUrl
