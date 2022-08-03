@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "for production/test and public/private"
+Parameters:
+  Instancetype:
+    Type : String 
+    Description: "dess"
+    Default: t2.micro
+  Mykey:
+    Description: "MY KEY"
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: "yasser"
+  Env:
+    Description: "Deployment Environment"
+    Type : String 
+    Default: "Test"
+    AllowedValues:
+      - Test
+      - Prod
+  NetMode:
+    Description: "public or private"
+    Type: String
+    Default: "Public"
+    AllowedValues:
+      - Public
+      - Private
+  AMID:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+  Message:
+    Description: "Message for HTML page"
+    Default: "Test1"
+    Type: "String"
+Conditions:
+  IsProduction: !Equals 
+    - !Ref Env
+    - Prod
+  IsTest : !Equals 
+    - !Ref Env
+    - Test
+  IsPublic: !Equals
+    - !Ref NetMode
+    - Public
+  IsPrivate: !Equals
+    - !Ref NetMode
+    - Private
+Resources:
+
+  ResponseUrl:
+    Type: AWS::CloudFormation::WaitConditionHandle 
+  
+  PublicInstance:
+    Type: AWS::EC2::Instance
+    Condition: IsPublic
+    Metadata:
+      'AWS::CloudFormation::Init':
+        configSets: 
+          default: 
+            - "seting-cfhup"
+            - "setting-website"
+        seting-cfhup:
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackName}
+                region=${AWS::Region}
+                interval=1
+                verbose=true
+              mode: '000400'
+              owner: 'root'
+              group: 'root'
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.PublicInstance.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource PublicInstance --region ${AWS::Region}
+                runas=root
+              mode: '000400'
+              owner: 'root'
+              group: 'root'
+          commands:
+            requiredonly:
+              command: "/bin/echo -n "
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: "true"
+                ensureRunning: "true"
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf               
+        setting-website: 
+          packages:
+            yum:
+              httpd: []
+              tmux: [] 
+          sources:
+            /var/www/html:   https://github.com/yasser-alhawary/cloudformation/tarball/v1.0
+          files:
+            /var/www/html/index.html:
+              content: !Sub |
+                <html><head><title>Amazing test page</title></head><body><h1><center>${Message}"asdasd"</center></h1></body></html> 
+          commands:
+            setperm:
+              command: "chown -R apache:apache /var/www/html"          
+          services:                      
+            systemd:                 
+              httpd:
+                enabled: "true"
+                ensureRunning: "true"
+                files:
+                  - "/var/www/html/index.html"
+    Properties:
+      InstanceType: !Ref Instancetype
+      ImageId: !Ref AMID
+      KeyName: !Ref Mykey
+      SecurityGroupIds:
+        - !ImportValue  SSH
+        - !ImportValue  HTTP
+      SubnetId: !ImportValue  PubSub1	     
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource PublicInstance --region ${AWS::Region}
+          [ $? -eq 0 ] && /usr/bin/curl -X PUT -H 'Content-Type:' --data-binary '{"Status": "SUCCESS", "Reason": "Configuration Complete","UniqueId": "ss", "Data": "Application has completed configuration."}' "${ResponseUrl}" || /usr/bin/curl -X PUT -H 'Content-Type:' --data-binary '{"Status": "FAILURE", "Reason": "Configuration failed","UniqueId": "ff", "Data": "Application has not completed configuration."}' "${ResponseUrl}"
+
+
+
+  
+  WaitForEc2:
+    Type: AWS::CloudFormation::WaitCondition
+    DependsOn:  PublicInstance
+    Properties:
+      Count: 1
+      Timeout: 300
+      Handle: !Ref ResponseUrl
+
+  s3Bucket:
+    Type: AWS::S3::Bucket
+    DependsOn:  WaitForEc2
