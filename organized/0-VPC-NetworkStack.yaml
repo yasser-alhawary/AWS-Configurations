@@ -254,6 +254,16 @@ Outputs:
     Value: !Ref Subnet3Public
     Export: 
       Name: PubSub3
+  PriTab:
+    Description: Private Route Table
+    Value: !Ref   PrivateRouteTable
+    Export: 
+      Name: PrivateRT
+  PubTab:
+    Description: Public Route Table
+    Value: !Ref   PublicRouteTable
+    Export: 
+      Name: PublicRT
   SecurityGroupForSSH:
     Description: SSH Security Group
     Value: !Ref SSHSecurityGroup
