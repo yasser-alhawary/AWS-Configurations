@@ -123,7 +123,7 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource PublicInstance --region ${AWS::Region}
-          [ $? -eq 0 ] && /usr/bin/curl -X PUT -H 'Content-Type:' --data-binary '{"Status": "SUCCESS", "Reason": "Configuration Complete","UniqueId": "ss", "Data": "Application has completed configuration."}' "${ResponseUrl}" || /usr/bin/curl -X PUT -H 'Content-Type:' --data-binary '{"Status": "FAILURE", "Reason": "Configuration failed","UniqueId": "ff", "Data": "Application has not completed configuration."}' "${ResponseUrl}"
+          [ $? -eq 0 ] && /usr/bin/curl -X PUT -H 'Content-Type:' --data-binary '{"Status": "SUCCESS", "Reason": "Configuration Complete","UniqueId": "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)", "Data": "Application has completed configuration."}' "${ResponseUrl}" || /usr/bin/curl -X PUT -H 'Content-Type:' --data-binary '{"Status": "FAILURE", "Reason": "Configuration failed","UniqueId": "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)", "Data": "Application has not completed configuration."}' "${ResponseUrl}"
 
 
 
