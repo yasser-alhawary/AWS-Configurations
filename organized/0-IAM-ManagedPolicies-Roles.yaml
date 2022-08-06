@@ -26,7 +26,7 @@ Resources:
                 -  !Sub arn:${AWS::Partition}:s3:::patch-baseline-snapshot-${AWS::Region}/*
 
     
-  EC2CloudFormationBucketsROS3Access:
+  EC2CloudFormationBucketsWOS3Access:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       PolicyDocument: 
@@ -55,7 +55,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
         - !Ref EC2SSMBucketsROS3Access
-        - !Ref EC2CloudFormationBucketsROS3Access
+        - !Ref EC2CloudFormationBucketsWOS3Access
 
   EC2InstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
