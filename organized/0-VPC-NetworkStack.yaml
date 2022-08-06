@@ -107,8 +107,20 @@ Resources:
       IpProtocol: tcp
       FromPort: 80
       ToPort: 80 
-  
-
+  SecurityGroupForVPCInterfaceEndpointHTTPS:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: Enable HTTPS access via port 443 IPv4
+      VpcId: !Ref TestVPC
+      SecurityGroupIngress:
+        - Description: "Allow HTTPS IPv4 IN"
+          IpProtocol: tcp
+          FromPort: "443"
+          ToPort: "443"
+          CidrIp: "0.0.0.0/0"
+      Tags:
+        - Key: StackName
+          Value: !Ref AWS::StackName  
   PrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -274,6 +286,11 @@ Outputs:
     Value: !Ref HTTPSecurityGroup
     Export: 
       Name: HTTP
+  SecurityGroupForVPCIEHTTPS:
+    Description: HTTPS Security Group For ALB
+    Value: !Ref SecurityGroupForVPCInterfaceEndpointHTTPS
+    Export: 
+      Name: HTTPS
   SecurityGroupForHTTPSALB:
     Description: HTTPS Security Group For ALB
     Value: !Ref SecurityGroupForALBHTTPS
