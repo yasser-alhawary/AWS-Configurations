@@ -22,10 +22,6 @@ Parameters:
   AMID:
     Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
     Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
-  Message:
-    Description: "Message for HTML page"
-    Default: "Test1"
-    Type: "String"
 Conditions:
   IsProduction: !Equals 
     - !Ref Env
@@ -160,7 +156,6 @@ Resources:
       InstanceType: !Ref Instancetype
       ImageId: !Ref AMID
       IamInstanceProfile: !ImportValue EC2InsPro
-
       SecurityGroupIds: !
         - !ImportValue  None
       SubnetId: !ImportValue  PriSub1      
