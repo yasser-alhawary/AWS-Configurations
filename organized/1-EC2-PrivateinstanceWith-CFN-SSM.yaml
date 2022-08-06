@@ -5,10 +5,6 @@ Parameters:
     Type : String 
     Description: "dess"
     Default: t2.micro
-  Mykey:
-    Description: "MY KEY"
-    Type: AWS::EC2::KeyPair::KeyName
-    Default: "yasser"
   Env:
     Description: "Deployment Environment"
     Type : String 
@@ -163,11 +159,10 @@ Resources:
     Properties:
       InstanceType: !Ref Instancetype
       ImageId: !Ref AMID
-      KeyName: !Ref Mykey
       IamInstanceProfile: !ImportValue EC2InsPro
 
       SecurityGroupIds: !
-        - !ImportValue  SSH
+        - !ImportValue  None
       SubnetId: !ImportValue  PriSub1      
       UserData:
         Fn::Base64: !Sub |

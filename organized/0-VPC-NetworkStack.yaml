@@ -46,6 +46,15 @@ Resources:
       Tags:
         - Key: StackName
           Value: !Ref AWS::StackName
+  NoneSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: EmptySecurityGroup
+      VpcId: !Ref TestVPC
+
+      Tags:
+        - Key: StackName
+          Value: !Ref AWS::StackName
   SSHSecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
@@ -276,6 +285,11 @@ Outputs:
     Value: !Ref   PublicRouteTable
     Export: 
       Name: PublicRT
+  SecurityGroupForNone:
+    Description: None Security Group
+    Value: !Ref NoneSecurityGroup
+    Export: 
+      Name: None
   SecurityGroupForSSH:
     Description: SSH Security Group
     Value: !Ref SSHSecurityGroup
