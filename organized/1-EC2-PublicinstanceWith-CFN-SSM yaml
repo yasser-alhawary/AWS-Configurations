@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "for production/test and public/private"
+Parameters:
+  Instancetype:
+    Type : String 
+    Description: "dess"
+    Default: t2.micro
+  Env:
+    Description: "Deployment Environment"
+    Type : String 
+    Default: "Test"
+    AllowedValues:
+      - Test
+      - Prod
+  NetMode:
+    Description: "public or private"
+    Type: String
+    Default: "Public"
+    AllowedValues:
+      - Public
+      - Private
+  AMID:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+  Message:
+    Description: "Message for HTML page"
+    Default: "Test1"
+    Type: "String"
+Conditions:
+  IsProduction: !Equals 
+    - !Ref Env
+    - Prod
+  IsTest : !Equals 
+    - !Ref Env
+    - Test
+  IsPublic: !Equals
+    - !Ref NetMode
+    - Public
+  IsPrivate: !Equals
+    - !Ref NetMode
+    - Private
+Resources:
+
+  PublicInstance:
+    Type: AWS::EC2::Instance
+    Condition: IsPublic
+    Metadata:
+      'AWS::CloudFormation::Init':
+        configSets: 
+          default: 
+            - "seting-cfhup"
+        seting-cfhup:
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackName}
+                region=${AWS::Region}
+                interval=1
+                verbose=true
+              mode: '000400'
+              owner: 'root'
+              group: 'root'
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.PublicInstance.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource PublicInstance --region ${AWS::Region}
+                runas=root
+              mode: '000400'
+              owner: 'root'
+              group: 'root'
+          commands:
+            requiredonly:
+              command: "/bin/echo -n "
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: "true"
+                ensureRunning: "true"
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf               
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT5M    
+    Properties:
+      InstanceType: !Ref Instancetype
+      ImageId: !Ref AMID
+      SecurityGroupIds:
+        - !ImportValue  None
+      IamInstanceProfile: !ImportValue EC2InsPro
+      SubnetId: !ImportValue  PubSub1	
+      Tags:
+        - Key: SSM
+          Value: Managed     
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource PublicInstance --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource PublicInstance
