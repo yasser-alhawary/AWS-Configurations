@@ -1,1 +1,1 @@
-this repo contains a cloudformation templates
+this repo contains AWS Services Templates/Configurations 

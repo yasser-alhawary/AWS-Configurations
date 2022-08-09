@@ -13,7 +13,7 @@ jobs:
     - name: modify-template-for-cfn-init
       run: |
         echo "the trigger tag is ${GITHUB_REF##*/}"
-        wget https://raw.githubusercontent.com/yasser-alhawary/cloudformation/master/testing.yaml --output-document=/tmp/template.yaml
+        wget https://raw.githubusercontent.com/yasser-alhawary/cloudformation/master/CloudFormation-Templates/testing.yaml --output-document=/tmp/template.yaml
         sed -i 's/tarball.*$/tarball\/'"${GITHUB_REF##*\/}"'/gi' /tmp/template.yaml   
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
